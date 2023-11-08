@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <cerrno>
+#include <unistd.h>
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
@@ -45,7 +46,7 @@ int main() {
     int senderSocket = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
 
     if (senderSocket == -1) {
-        std::cerr << "Error code (errno): " << errno << std::endl;
+        std::cerr << "Error creating socket: " << strerror(errno) << std::endl;
         exit(1);
     }
 
@@ -56,8 +57,8 @@ int main() {
     std::memset(datagram, 0, 4096);
 
     auto iph = reinterpret_cast<struct iphdr*>(datagram);
-
     auto tcph = reinterpret_cast<struct tcphdr*>(datagram + sizeof(struct ip));
+
     sockaddr_in sin{};
     pseudo_header psh{};
 
@@ -122,15 +123,19 @@ int main() {
 
     // send packet
     if (setsockopt(senderSocket, IPPROTO_IP, IP_HDRINCL, val, sizeof(one) < 0)) {
-        std::cerr << "Error code (errno): " << errno << std::endl;
-        exit(0);
+        std::cerr << "Error setting IP_HDRINCL option: " << strerror(errno) << std::endl;
+        close(senderSocket);
+        exit(1);
     }
 
     if (sendto(senderSocket, datagram, iph->tot_len, 0, reinterpret_cast<sockaddr*>(&sin), sizeof(sin)) < 0) {
-        std::cerr << "Error code (errno): " << errno << std::endl;
+        std::cerr << "Error sending packet: " << strerror(errno) << std::endl;
+        close(senderSocket);
+        exit(1);
     } else {
         std::cout << "Packet Send. Length : " << iph->tot_len << std::endl;
     }
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    close(senderSocket);
     return 0;
 }
