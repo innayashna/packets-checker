@@ -65,19 +65,16 @@ unsigned short Sender::calculateChecksum(unsigned short *ptr, int numberOfBytes)
     sum = sum + (sum >> 16);
     answer = static_cast<short>(~sum);
 
-    return answer;
+    return htons(answer);
 }
 
 void Sender::fillInIPHeader() {
-    std::strcpy(datagram + sizeof(struct iphdr) + sizeof(struct tcphdr), senderPayload.c_str());
+    std::memcpy(datagram + sizeof(struct iphdr) + sizeof(struct tcphdr),
+                senderPayload.c_str(), senderPayload.length());
 
     sin.sin_family = AF_INET;
     sin.sin_port = htons(destinationPort);
     sin.sin_addr.s_addr = inet_addr(destinationIP.c_str());
-
-    std::cout << "IP Header Length: " << sizeof(struct iphdr) << " bytes" << std::endl;
-    std::cout << "TCP Header Length: " << sizeof(struct tcphdr) << " bytes" << std::endl;
-    std::cout << "Payload Length: " << senderPayload.length() << " bytes" << std::endl;
 
     iph->ihl = 5;
     iph->version = 4;
@@ -141,7 +138,6 @@ void Sender::sendPacket() {
         std::cerr << "Error sending packet: " << strerror(errno) << std::endl;
         exit(1);
     } else {
-        std::cout << "TCP header doff : " << tcph->doff << std::endl;
         std::cout << "Packet Send. Length : " << iph->tot_len << std::endl;
     }
 }

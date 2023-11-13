@@ -10,11 +10,11 @@ public:
     Receiver();
     ~Receiver();
 
-    void receivePacket();
+    void receivePacket(int expectedPort);
 
 private:
     int receiverSocket;
-    struct sockaddr_in receiverAddress;
+    struct sockaddr_in sin{};
     char buffer[4096]{};
     struct iphdr *iph;
     struct tcphdr *tcph;

@@ -1,7 +1,6 @@
 #include "Sender.h"
 #include "Receiver.h"
 #include <iostream>
-#include <thread>
 
 int main() {
     Sender sender;
@@ -17,10 +16,7 @@ int main() {
     sender.setDestinationPort(8080);
 
     sender.sendPacket();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    receiver.receivePacket();
+    receiver.receivePacket(8080);
 
     return 0;
 }

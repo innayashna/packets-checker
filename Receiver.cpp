@@ -12,37 +12,38 @@ Receiver::Receiver() {
         exit(1);
     }
 
-    receiverAddress.sin_family = AF_INET;
-    receiverAddress.sin_port = htons(8080);
-    receiverAddress.sin_addr.s_addr = INADDR_ANY;
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons(8080);
+    sin.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(receiverSocket, reinterpret_cast<struct sockaddr*>(&receiverAddress), sizeof(receiverAddress)) == -1) {
-        std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
-        exit(1);
-    }
+    iph = reinterpret_cast<struct iphdr *>(buffer);
+    tcph = reinterpret_cast<struct tcphdr *>(buffer + sizeof(struct iphdr));
 }
 
 Receiver::~Receiver() {
     close(receiverSocket);
 }
 
-void Receiver::receivePacket() {
-    ssize_t dataSize = recv(receiverSocket, buffer, sizeof(buffer), 0);
+void Receiver::receivePacket(int expectedPort) {
+    while (true) {
+        std::memset(buffer, 0, 4096);
+        ssize_t dataSize = recv(receiverSocket, buffer, sizeof(buffer), 0);
 
-    if (dataSize < 0) {
-        std::cerr << "Error receiving packet: " << strerror(errno) << std::endl;
-        exit(1);
+        if (dataSize < 0) {
+            std::cerr << "Error receiving packet: " << strerror(errno) << std::endl;
+            exit(1);
+        }
+
+        int sourcePort = ntohs(tcph->source);
+
+        if (sourcePort == expectedPort) {
+            processPacket(buffer, dataSize);
+            break;
+        }
     }
-
-    processPacket(buffer, dataSize);
 }
 
-void Receiver::processPacket(char *buffer, ssize_t dataSize) {
-    iph = reinterpret_cast<struct iphdr *>(buffer);
-    tcph = reinterpret_cast<struct tcphdr *>(buffer + sizeof(struct iphdr));
-
-    std::cout << "Received packet length: " << dataSize << std::endl;
-    std::cout << "Received TCP header doff: " << tcph->doff << std::endl;
+void Receiver::processPacket(char* buffer, ssize_t dataSize) {
     std::cout << "Payload: " << buffer + sizeof(struct iphdr) + sizeof(struct tcphdr) << std::endl;
 }
 
@@ -66,7 +67,7 @@ unsigned short Receiver::calculateChecksum(unsigned short *ptr, int numberOfByte
     sum = sum + (sum >> 16);
     answer = static_cast<short>(~sum);
 
-    return answer;
+    return htons(answer);
 }
 
 
