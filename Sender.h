@@ -4,7 +4,7 @@
 #include <string>
 #include <netinet/ip.h>
 
-constexpr int SOURCE_PORT = 1234;
+constexpr int SOURCE_PORT = 8080;
 constexpr int WINDOW_SIZE = 5840;
 constexpr int MAX_PAYLOAD_SIZE = 4096;
 constexpr int MAX_DATAGRAM_SIZE = 4096;
@@ -46,6 +46,7 @@ private:
     void fillInTCPHeader();
     void fillInPseudoHeader();
     void configureSocketOptions();
+    void printPacketContent(const char* packet, ssize_t dataSize);
 };
 
 #endif //PACKETS_CHECKER_SENDER_H
