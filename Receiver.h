@@ -9,21 +9,24 @@
 
 class Receiver {
 public:
-    Receiver();
+    Receiver(const std::string& proxyIP, int proxyPort);
     ~Receiver();
 
     void receivePacket(int expectedPort);
 
 private:
     Checksum checksumCalculator;
+
     int receiverSocket;
-    struct sockaddr_in sin{};
-    char buffer[4096]{};
+    struct sockaddr_in receiverAddr{};
+
+    char packet[4096]{};
+
     struct iphdr *iph;
     struct tcphdr *tcph;
 
-    void validateChecksum(char *buffer, ssize_t dataSize);
-    unsigned short calculatePseudoHeaderChecksum(char* buffer, ssize_t dataSize);
+    void validateChecksum(char *receivedPacket, ssize_t dataSize);
+    unsigned short calculatePseudoHeaderChecksum(char* receivedPacket, ssize_t dataSize);
 };
 
 #endif //PACKETS_CHECKER_RECEIVER_H
