@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <cstring>
-#include <arpa/inet.h>
 #include <unistd.h>
 #include <cerrno>
 #include <netinet/tcp.h>
@@ -52,7 +51,19 @@ void Receiver::receivePacket(int expectedPort) {
 
 void Receiver::validateChecksum(char* buffer, ssize_t dataSize) {
     unsigned short sentChecksum = tcph->check;
+    tcph->check = 0;
 
+    unsigned short receivedChecksum = calculatePseudoHeaderChecksum(buffer, dataSize);
+    tcph->check = receivedChecksum;
+
+    if (receivedChecksum == sentChecksum) {
+        std::cout << "Checksum is valid. Packet was not corrupted." << std::endl;
+    } else {
+        std::cout << "Checksum does not match. Packet may be corrupted." << std::endl;
+    }
+}
+
+unsigned short Receiver::calculatePseudoHeaderChecksum(char* buffer, ssize_t dataSize) {
     pseudo_header psh{};
     psh.source_address = iph->saddr;
     psh.destination_address = iph->daddr;
@@ -69,17 +80,7 @@ void Receiver::validateChecksum(char* buffer, ssize_t dataSize) {
     std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), buffer + sizeof(struct iphdr),
                 sizeof(struct tcphdr) + payloadSize);
 
-    unsigned short receivedChecksum = checksumCalculator.calculateChecksum(
-            reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
-
-    std::cout << "Sent checksum: " << sentChecksum << std::endl;
-    std::cout << "Received checksum: " << receivedChecksum << std::endl;
-
-    if (receivedChecksum == sentChecksum) {
-        std::cout << "Checksum is valid. Packet was not corrupted." << std::endl;
-    } else {
-        std::cout << "Checksum does not match. Packet may be corrupted." << std::endl;
-    }
+    return checksumCalculator.calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
 }
 
 

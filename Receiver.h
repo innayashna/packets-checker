@@ -23,6 +23,7 @@ private:
     struct tcphdr *tcph;
 
     void validateChecksum(char *buffer, ssize_t dataSize);
+    unsigned short calculatePseudoHeaderChecksum(char* buffer, ssize_t dataSize);
 };
 
 #endif //PACKETS_CHECKER_RECEIVER_H
