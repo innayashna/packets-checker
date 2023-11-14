@@ -32,7 +32,8 @@ private:
     int destinationPort{};
     struct iphdr* iph;
     struct tcphdr* tcph;
-    sockaddr_in sin{};
+    struct sockaddr_in senderAddr;
+    sockaddr_in receiverAddr{};
 
     void fillInIPHeader();
     void fillInTCPHeader();

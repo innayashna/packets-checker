@@ -51,9 +51,9 @@ void Sender::fillInIPHeader() {
     std::memcpy(datagram + sizeof(struct iphdr) + sizeof(struct tcphdr),
                 senderPayload.c_str(), senderPayload.length());
 
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(destinationPort);
-    sin.sin_addr.s_addr = inet_addr(destinationIP.c_str());
+    receiverAddr.sin_family = AF_INET;
+    receiverAddr.sin_port = htons(destinationPort);
+    receiverAddr.sin_addr.s_addr = inet_addr(destinationIP.c_str());
 
     iph->ihl = 5;
     iph->version = 4;
@@ -65,7 +65,7 @@ void Sender::fillInIPHeader() {
     iph->protocol = IPPROTO_TCP;
     iph->check = 0;
     iph->saddr = inet_addr(sourceIP.c_str());
-    iph->daddr = sin.sin_addr.s_addr;
+    iph->daddr = receiverAddr.sin_addr.s_addr;
 
     iph->check = checksumCalculator.calculateChecksum(reinterpret_cast<unsigned short*>(iph), iph->ihl * 4);
 }
@@ -114,7 +114,7 @@ void Sender::sendPacket() {
     configureSocketOptions();
 
     if (sendto(senderSocket, datagram, iph->tot_len, 0,
-               reinterpret_cast<sockaddr*>(&sin), sizeof(sin)) < 0) {
+               reinterpret_cast<sockaddr*>(&receiverAddr), sizeof(receiverAddr)) < 0) {
         std::cerr << "Error sending packet: " << strerror(errno) << std::endl;
         exit(1);
     } else {
@@ -131,6 +131,3 @@ void Sender::configureSocketOptions() {
         exit(1);
     }
 }
-
-
-
