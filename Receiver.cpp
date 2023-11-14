@@ -7,9 +7,10 @@
 #include <cerrno>
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
 #include <memory>
 
-Receiver::Receiver() {
+Receiver::Receiver(const std::string& receiverIP, int receiverPort) {
     receiverSocket = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
 
     if (receiverSocket == -1) {
@@ -17,12 +18,12 @@ Receiver::Receiver() {
         exit(1);
     }
 
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(8080);
-    sin.sin_addr.s_addr = INADDR_ANY;
+    receiverAddr.sin_family = AF_INET;
+    receiverAddr.sin_port = htons(receiverPort);
+    receiverAddr.sin_addr.s_addr = inet_addr(receiverIP.c_str());
 
-    iph = reinterpret_cast<struct iphdr *>(buffer);
-    tcph = reinterpret_cast<struct tcphdr *>(buffer + sizeof(struct iphdr));
+    iph = reinterpret_cast<struct iphdr *>(packet);
+    tcph = reinterpret_cast<struct tcphdr *>(packet + sizeof(struct iphdr));
 }
 
 Receiver::~Receiver() {
@@ -31,8 +32,8 @@ Receiver::~Receiver() {
 
 void Receiver::receivePacket(int expectedPort) {
     while (true) {
-        std::memset(buffer, 0, 4096);
-        ssize_t dataSize = recv(receiverSocket, buffer, sizeof(buffer), 0);
+        std::memset(packet, 0, sizeof(packet));
+        ssize_t dataSize = recv(receiverSocket, packet, sizeof(packet), 0);
 
         if (dataSize < 0) {
             std::cerr << "Error receiving packet: " << strerror(errno) << std::endl;
@@ -40,20 +41,22 @@ void Receiver::receivePacket(int expectedPort) {
         }
 
         int sourcePort = ntohs(tcph->source);
+        std::cout << "Source port: " << sourcePort << std::endl;
 
         if (sourcePort == expectedPort) {
-            validateChecksum(buffer, dataSize);
-            std::cout << "Payload: " << buffer + sizeof(struct iphdr) + sizeof(struct tcphdr) << std::endl;
+            std::cout << "Received data size: " << dataSize << std::endl;
+            validateChecksum(packet, dataSize);
+            std::cout << "Payload: " << packet + sizeof(struct iphdr) + sizeof(struct tcphdr) << std::endl;
             break;
         }
     }
 }
 
-void Receiver::validateChecksum(char* buffer, ssize_t dataSize) {
+void Receiver::validateChecksum(char* receivedPacket, ssize_t dataSize) {
     unsigned short sentChecksum = tcph->check;
     tcph->check = 0;
 
-    unsigned short receivedChecksum = calculatePseudoHeaderChecksum(buffer, dataSize);
+    unsigned short receivedChecksum = calculatePseudoHeaderChecksum(receivedPacket, dataSize);
     tcph->check = receivedChecksum;
 
     if (receivedChecksum == sentChecksum) {
@@ -63,7 +66,7 @@ void Receiver::validateChecksum(char* buffer, ssize_t dataSize) {
     }
 }
 
-unsigned short Receiver::calculatePseudoHeaderChecksum(char* buffer, ssize_t dataSize) {
+unsigned short Receiver::calculatePseudoHeaderChecksum(char* receivedPacket, ssize_t dataSize) {
     pseudo_header psh{};
     psh.source_address = iph->saddr;
     psh.destination_address = iph->daddr;
@@ -71,13 +74,13 @@ unsigned short Receiver::calculatePseudoHeaderChecksum(char* buffer, ssize_t dat
     psh.protocol = IPPROTO_TCP;
     psh.tcp_length = htons(dataSize - sizeof(struct iphdr));
 
-    int payloadSize = dataSize - sizeof(struct iphdr) - sizeof(struct tcphdr);
+    int payloadSize = static_cast<int>(dataSize - sizeof(struct iphdr) - sizeof(struct tcphdr));
 
-    int pseudogramSize = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + payloadSize;
+    int pseudogramSize = static_cast<int>(sizeof(struct pseudo_header) + sizeof(struct tcphdr) + payloadSize);
     auto pseudogram = std::make_unique<char[]>(pseudogramSize);
 
     std::memcpy(pseudogram.get(), reinterpret_cast<char*>(&psh), sizeof(struct pseudo_header));
-    std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), buffer + sizeof(struct iphdr),
+    std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), receivedPacket + sizeof(struct iphdr),
                 sizeof(struct tcphdr) + payloadSize);
 
     return checksumCalculator.calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);

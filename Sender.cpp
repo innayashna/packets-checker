@@ -10,7 +10,22 @@
 #include <arpa/inet.h>
 #include <memory>
 
-Sender::Sender() {
+Sender::Sender(const std::string& senderIP, int senderPort, const std::string& proxyIP, int proxyPort) {
+    initializeSenderSocket(senderPort, senderIP);
+
+    proxyAddr.sin_family = AF_INET;
+    proxyAddr.sin_port = htons(proxyPort);
+    proxyAddr.sin_addr.s_addr = inet_addr(proxyIP.c_str());
+
+    iph = reinterpret_cast<struct iphdr*>(datagram);
+    tcph = reinterpret_cast<struct tcphdr*>(datagram + sizeof(struct iphdr));
+}
+
+Sender::~Sender() {
+    close(senderSocket);
+}
+
+void Sender::initializeSenderSocket(int senderPort, const std::string& senderIP) {
     senderSocket = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
 
     if (senderSocket == -1) {
@@ -18,13 +33,9 @@ Sender::Sender() {
         exit(1);
     }
 
-    std::memset(datagram, 0, MAX_DATAGRAM_SIZE);
-    iph = reinterpret_cast<struct iphdr*>(datagram);
-    tcph = reinterpret_cast<struct tcphdr*>(datagram + sizeof(struct iphdr));
-}
-
-Sender::~Sender() {
-    close(senderSocket);
+    senderAddr.sin_family = AF_INET;
+    senderAddr.sin_port = htons(senderPort);
+    senderAddr.sin_addr.s_addr = inet_addr(senderIP.c_str());
 }
 
 void Sender::setPayload(const std::string& payload) {
@@ -35,25 +46,9 @@ void Sender::setPayload(const std::string& payload) {
     senderPayload = payload;
 }
 
-void Sender::setSourceIP(const std::string& newSourceIP) {
-    sourceIP = newSourceIP;
-}
-
-void Sender::setDestinationIP(const std::string& newDestinationIP) {
-    destinationIP = newDestinationIP;
-}
-
-void Sender::setDestinationPort(int port) {
-    destinationPort = port;
-}
-
 void Sender::fillInIPHeader() {
     std::memcpy(datagram + sizeof(struct iphdr) + sizeof(struct tcphdr),
                 senderPayload.c_str(), senderPayload.length());
-
-    receiverAddr.sin_family = AF_INET;
-    receiverAddr.sin_port = htons(destinationPort);
-    receiverAddr.sin_addr.s_addr = inet_addr(destinationIP.c_str());
 
     iph->ihl = 5;
     iph->version = 4;
@@ -64,15 +59,15 @@ void Sender::fillInIPHeader() {
     iph->ttl = 255;
     iph->protocol = IPPROTO_TCP;
     iph->check = 0;
-    iph->saddr = inet_addr(sourceIP.c_str());
-    iph->daddr = receiverAddr.sin_addr.s_addr;
+    iph->saddr = senderAddr.sin_addr.s_addr;
+    iph->daddr = proxyAddr.sin_addr.s_addr;
 
     iph->check = checksumCalculator.calculateChecksum(reinterpret_cast<unsigned short*>(iph), iph->ihl * 4);
 }
 
 void Sender::fillInTCPHeader() {
-    tcph->source = htons(SOURCE_PORT);
-    tcph->dest = htons(destinationPort);
+    tcph->source = senderAddr.sin_port;
+    tcph->dest = proxyAddr.sin_port;
     tcph->seq = 0;
     tcph->ack_seq = 0;
     tcph->doff = 5;
@@ -89,13 +84,13 @@ void Sender::fillInTCPHeader() {
 
 void Sender::fillInPseudoHeader() {
     pseudo_header psh{};
-    psh.source_address = inet_addr(sourceIP.c_str());
-    psh.destination_address = inet_addr(destinationIP.c_str());
+    psh.source_address = senderAddr.sin_addr.s_addr;
+    psh.destination_address = proxyAddr.sin_addr.s_addr;
     psh.reserved_field = 0;
     psh.protocol = IPPROTO_TCP;
     psh.tcp_length = htons(sizeof(struct tcphdr) + senderPayload.length());
 
-    int pseudogramSize = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + senderPayload.length();
+    int pseudogramSize = static_cast<int>(sizeof(struct pseudo_header) + sizeof(struct tcphdr) + senderPayload.length());
     auto pseudogram = std::make_unique<char[]>(pseudogramSize);
 
     std::memcpy(pseudogram.get(), reinterpret_cast<char*>(&psh), sizeof(struct pseudo_header));
@@ -114,7 +109,7 @@ void Sender::sendPacket() {
     configureSocketOptions();
 
     if (sendto(senderSocket, datagram, iph->tot_len, 0,
-               reinterpret_cast<sockaddr*>(&receiverAddr), sizeof(receiverAddr)) < 0) {
+               reinterpret_cast<sockaddr*>(&proxyAddr), sizeof(proxyAddr)) < 0) {
         std::cerr << "Error sending packet: " << strerror(errno) << std::endl;
         exit(1);
     } else {
@@ -122,7 +117,7 @@ void Sender::sendPacket() {
     }
 }
 
-void Sender::configureSocketOptions() {
+void Sender::configureSocketOptions() const {
     int one = 1;
     const int *val = &one;
 

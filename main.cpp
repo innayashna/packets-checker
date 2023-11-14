@@ -1,25 +1,26 @@
 #include "Sender.h"
-#include "Receiver.h"
 #include "Proxy.h"
+#include "Receiver.h"
 #include <iostream>
 
 int main() {
-    Sender sender;
-    Receiver receiver;
-    Proxy proxy("127.0.0.1", 8082, 8081);
+    constexpr int SENDER_PORT = 8080;
+    constexpr int PROXY_PORT = 8081;
+    constexpr int RECEIVER_PORT = 8082;
+    constexpr const char* LOCAL_IP = "127.0.0.1";
+
+    Sender sender(LOCAL_IP, SENDER_PORT, LOCAL_IP, PROXY_PORT);
+    Proxy proxy(LOCAL_IP, PROXY_PORT, LOCAL_IP, RECEIVER_PORT);
+    Receiver receiver(LOCAL_IP, RECEIVER_PORT);
 
     std::string payload;
     std::cout << "Enter the payload data: ";
     std::getline(std::cin, payload);
     sender.setPayload(payload);
 
-    sender.setSourceIP("127.0.0.1");
-    sender.setDestinationIP("127.0.0.1");
-    sender.setDestinationPort(8081);
-
     sender.sendPacket();
-    proxy.receivePacket(8080);
-    receiver.receivePacket(8081);
+    proxy.receivePacket(SENDER_PORT);
+    receiver.receivePacket(PROXY_PORT);
 
     return 0;
 }

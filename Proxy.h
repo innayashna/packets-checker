@@ -7,20 +7,22 @@
 
 class Proxy {
 public:
-    Proxy(const std::string& receiverIP, int receiverPort, int proxyPort);
+    Proxy(const std::string& proxyIP, int proxyPort, const std::string& receiverIP, int receiverPort);
     ~Proxy();
 
     void receivePacket(int expectedPort);
 
 private:
-    int proxySocket;
-    struct sockaddr_in proxyAddr;
-    struct sockaddr_in receiverAddr;
-    char buffer[4096];
+    int proxySocket{};
+    struct sockaddr_in proxyAddr{};
+    struct sockaddr_in receiverAddr{};
+
+    char packet[4096]{};
+
     struct iphdr *iph;
     struct tcphdr *tcph;
 
-    void initializeProxySocket(int proxyPort);
+    void initializeProxySocket(int proxyPort, const std::string& proxyIP);
     void forwardPacketToReceiver(char* packet, ssize_t dataSize);
 };
 
