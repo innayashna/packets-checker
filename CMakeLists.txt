@@ -8,4 +8,6 @@ add_executable(packets_checker main.cpp
         Sender.h
         Receiver.cpp
         Receiver.h
+        Checksum.h
+        Checksum.cpp
 )

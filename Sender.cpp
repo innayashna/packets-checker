@@ -1,4 +1,6 @@
 #include "Sender.h"
+#include "Checksum.h"
+
 #include <iostream>
 #include <cstring>
 #include <cerrno>
@@ -45,29 +47,6 @@ void Sender::setDestinationPort(int port) {
     destinationPort = port;
 }
 
-unsigned short Sender::calculateChecksum(unsigned short *ptr, int numberOfBytes) {
-    long sum = 0;
-    unsigned short oddByte;
-    short answer;
-
-    while (numberOfBytes > 1) {
-        sum += *ptr++;
-        numberOfBytes -= 2;
-    }
-
-    if (numberOfBytes == 1) {
-        oddByte = 0;
-        *reinterpret_cast<uint8_t*>(&oddByte) = *reinterpret_cast<uint8_t*>(ptr);
-        sum += oddByte;
-    }
-
-    sum = (sum >> 16) + (sum & 0xffff);
-    sum = sum + (sum >> 16);
-    answer = static_cast<short>(~sum);
-
-    return htons(answer);
-}
-
 void Sender::fillInIPHeader() {
     std::memcpy(datagram + sizeof(struct iphdr) + sizeof(struct tcphdr),
                 senderPayload.c_str(), senderPayload.length());
@@ -88,7 +67,7 @@ void Sender::fillInIPHeader() {
     iph->saddr = inet_addr(sourceIP.c_str());
     iph->daddr = sin.sin_addr.s_addr;
 
-    iph->check = calculateChecksum(reinterpret_cast<unsigned short*>(datagram), iph->tot_len);
+    iph->check = checksumCalculator.calculateChecksum(reinterpret_cast<unsigned short*>(iph), iph->ihl * 4);
 }
 
 void Sender::fillInTCPHeader() {
@@ -123,7 +102,8 @@ void Sender::fillInPseudoHeader() {
     std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), datagram + sizeof(struct iphdr),
             sizeof(struct tcphdr) + senderPayload.length());
 
-    tcph->check = calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
+    tcph->check = checksumCalculator.calculateChecksum(
+            reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
 }
 
 void Sender::sendPacket() {

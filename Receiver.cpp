@@ -1,8 +1,14 @@
 #include "Receiver.h"
+#include "Checksum.h"
+
 #include <iostream>
 #include <cstring>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <cerrno>
+#include <netinet/tcp.h>
+#include <netinet/ip.h>
+#include <memory>
 
 Receiver::Receiver() {
     receiverSocket = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
@@ -37,37 +43,43 @@ void Receiver::receivePacket(int expectedPort) {
         int sourcePort = ntohs(tcph->source);
 
         if (sourcePort == expectedPort) {
-            processPacket(buffer, dataSize);
+            validateChecksum(buffer, dataSize);
+            std::cout << "Payload: " << buffer + sizeof(struct iphdr) + sizeof(struct tcphdr) << std::endl;
             break;
         }
     }
 }
 
-void Receiver::processPacket(char* buffer, ssize_t dataSize) {
-    std::cout << "Payload: " << buffer + sizeof(struct iphdr) + sizeof(struct tcphdr) << std::endl;
-}
+void Receiver::validateChecksum(char* buffer, ssize_t dataSize) {
+    unsigned short sentChecksum = tcph->check;
 
-unsigned short Receiver::calculateChecksum(unsigned short *ptr, int numberOfBytes) {
-    long sum = 0;
-    unsigned short oddByte;
-    short answer;
+    pseudo_header psh{};
+    psh.source_address = iph->saddr;
+    psh.destination_address = iph->daddr;
+    psh.reserved_field = 0;
+    psh.protocol = IPPROTO_TCP;
+    psh.tcp_length = htons(dataSize - sizeof(struct iphdr));
 
-    while (numberOfBytes > 1) {
-        sum += *ptr++;
-        numberOfBytes -= 2;
+    int payloadSize = dataSize - sizeof(struct iphdr) - sizeof(struct tcphdr);
+
+    int pseudogramSize = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + payloadSize;
+    auto pseudogram = std::make_unique<char[]>(pseudogramSize);
+
+    std::memcpy(pseudogram.get(), reinterpret_cast<char*>(&psh), sizeof(struct pseudo_header));
+    std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), buffer + sizeof(struct iphdr),
+                sizeof(struct tcphdr) + payloadSize);
+
+    unsigned short receivedChecksum = checksumCalculator.calculateChecksum(
+            reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
+
+    std::cout << "Sent checksum: " << sentChecksum << std::endl;
+    std::cout << "Received checksum: " << receivedChecksum << std::endl;
+
+    if (receivedChecksum == sentChecksum) {
+        std::cout << "Checksum is valid. Packet was not corrupted." << std::endl;
+    } else {
+        std::cout << "Checksum does not match. Packet may be corrupted." << std::endl;
     }
-
-    if (numberOfBytes == 1) {
-        oddByte = 0;
-        *reinterpret_cast<uint8_t*>(&oddByte) = *reinterpret_cast<uint8_t*>(ptr);
-        sum += oddByte;
-    }
-
-    sum = (sum >> 16) + (sum & 0xffff);
-    sum = sum + (sum >> 16);
-    answer = static_cast<short>(~sum);
-
-    return htons(answer);
 }
 
 
