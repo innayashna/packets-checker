@@ -10,4 +10,6 @@ add_executable(packets_checker main.cpp
         Receiver.h
         Checksum.h
         Checksum.cpp
+        Proxy.cpp
+        Proxy.h
 )

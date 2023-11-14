@@ -82,6 +82,3 @@ unsigned short Receiver::calculatePseudoHeaderChecksum(char* buffer, ssize_t dat
 
     return checksumCalculator.calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
 }
-
-
-
