@@ -5,12 +5,17 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+typedef enum {
+    FORWARD = 1,
+    MODIFY
+} InterceptionOption;
+
 class Proxy {
 public:
     Proxy(const std::string& proxyIP, int proxyPort, const std::string& receiverIP, int receiverPort);
     ~Proxy();
 
-    void setForwardFlag(const std::string& flag);
+    void setInterceptionOption(InterceptionOption option);
     void receivePacket(int expectedPort);
 
 private:
@@ -19,11 +24,12 @@ private:
     struct sockaddr_in receiverAddr{};
 
     char packet[4096]{};
-    std::string forwardFlag;
-
     struct iphdr *iph{};
+
     struct tcphdr *tcph{};
     std::string payload;
+
+    InterceptionOption interceptionOption;
 
     void initializeProxySocket(int proxyPort, const std::string& proxyIP);
     void forwardPacketToReceiver(char* packet, ssize_t dataSize);

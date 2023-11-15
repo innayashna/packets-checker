@@ -40,8 +40,8 @@ void Proxy::initializeProxySocket(int proxyPort, const std::string& proxyIP) {
     SocketConfigurator::configureSocketOptions(proxySocket);
 }
 
-void Proxy::setForwardFlag(const std::string &flag) {
-    forwardFlag = flag;
+void Proxy::setInterceptionOption(InterceptionOption option) {
+    interceptionOption = option;
 }
 
 void Proxy::receivePacket(int expectedPort) {
@@ -74,16 +74,25 @@ void Proxy::forwardPacketToReceiver(char* receivedPacket, ssize_t dataSize) {
     unsigned short newChecksum = Checksum::fillInPseudoHeader(receivedPacket, dataSize, iph, payload);
     tcph->check = newChecksum;
 
-    if(forwardFlag == "MODIFY") {
-        dataSize = modifyPayload(receivedPacket);
+    switch (interceptionOption) {
+        case InterceptionOption::MODIFY:
+            dataSize = modifyPayload(receivedPacket);
+        case InterceptionOption::FORWARD:
+            sendPacket(receivedPacket, dataSize);
+            break;
+        default:
+            std::cerr << "[PROXY] Unknown interception option: " << interceptionOption << std::endl;
+            std::cerr << "[PROXY] Packet will not be forwarded nor modified." << std::endl;
+            exit(1);
     }
-
-    sendPacket(receivedPacket, dataSize);
 }
 
 ssize_t Proxy::modifyPayload(char* receivedPacket) {
+    const std::string modification = " (modified)";
     std::string payload(receivedPacket + sizeof(struct iphdr) + sizeof(struct tcphdr));
-    std::string modifiedPayload = payload + " (modified)";
+    std::string modifiedPayload = payload + modification;
+
+    std::cout << "[PROXY] Packet was modified with string:" << modification << std::endl;
 
     std::memcpy(receivedPacket + sizeof(struct iphdr) + sizeof(struct tcphdr),
                 modifiedPayload.c_str(), modifiedPayload.length());
