@@ -12,4 +12,6 @@ add_executable(packets_checker main.cpp
         Checksum.cpp
         Proxy.cpp
         Proxy.h
+        SocketConfigurator.cpp
+        SocketConfigurator.h
 )

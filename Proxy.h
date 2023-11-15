@@ -25,9 +25,8 @@ private:
     struct tcphdr *tcph{};
 
     void initializeProxySocket(int proxyPort, const std::string& proxyIP);
-    void configureSocketOptions() const;
     void forwardPacketToReceiver(char* packet, ssize_t dataSize);
-    unsigned short calculateChecksumWithNewPorts(char* receivedPacket, ssize_t dataSize);
+    void sendPacket(char* receivedPacket, ssize_t dataSize);
     static ssize_t modifyPayload(char* receivedPacket);
 };
 

@@ -1,5 +1,6 @@
 #include "Sender.h"
 #include "Checksum.h"
+#include "SocketConfigurator.h"
 
 #include <iostream>
 #include <cstring>
@@ -37,17 +38,7 @@ void Sender::initializeSenderSocket(int senderPort, const std::string& senderIP)
     senderAddr.sin_port = htons(senderPort);
     senderAddr.sin_addr.s_addr = inet_addr(senderIP.c_str());
 
-    configureSocketOptions();
-}
-
-void Sender::configureSocketOptions() const {
-    int one = 1;
-    const int *val = &one;
-
-    if (setsockopt(senderSocket, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0) {
-        std::cerr << "Error setting IP_HDRINCL option: " << strerror(errno) << std::endl;
-        exit(1);
-    }
+    SocketConfigurator::configureSocketOptions(senderSocket);
 }
 
 void Sender::setPayload(const std::string& payload) {

@@ -30,7 +30,6 @@ private:
     void fillInIPHeader();
     void fillInTCPHeader();
     void fillInPseudoHeader();
-    void configureSocketOptions() const;
 };
 
 #endif //PACKETS_CHECKER_SENDER_H
