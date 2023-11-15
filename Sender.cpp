@@ -36,6 +36,18 @@ void Sender::initializeSenderSocket(int senderPort, const std::string& senderIP)
     senderAddr.sin_family = AF_INET;
     senderAddr.sin_port = htons(senderPort);
     senderAddr.sin_addr.s_addr = inet_addr(senderIP.c_str());
+
+    configureSocketOptions();
+}
+
+void Sender::configureSocketOptions() const {
+    int one = 1;
+    const int *val = &one;
+
+    if (setsockopt(senderSocket, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0) {
+        std::cerr << "Error setting IP_HDRINCL option: " << strerror(errno) << std::endl;
+        exit(1);
+    }
 }
 
 void Sender::setPayload(const std::string& payload) {
@@ -106,23 +118,11 @@ void Sender::sendPacket() {
     fillInTCPHeader();
     fillInPseudoHeader();
 
-    configureSocketOptions();
-
     if (sendto(senderSocket, datagram, iph->tot_len, 0,
                reinterpret_cast<sockaddr*>(&proxyAddr), sizeof(proxyAddr)) < 0) {
         std::cerr << "Error sending packet: " << strerror(errno) << std::endl;
         exit(1);
     } else {
         std::cout << "Packet Send. Length : " << iph->tot_len << std::endl;
-    }
-}
-
-void Sender::configureSocketOptions() const {
-    int one = 1;
-    const int *val = &one;
-
-    if (setsockopt(senderSocket, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0) {
-        std::cerr << "Error setting IP_HDRINCL option: " << strerror(errno) << std::endl;
-        exit(1);
     }
 }

@@ -33,6 +33,18 @@ void Proxy::initializeProxySocket(int proxyPort, const std::string& proxyIP) {
     proxyAddr.sin_family = AF_INET;
     proxyAddr.sin_port = htons(proxyPort);
     proxyAddr.sin_addr.s_addr = inet_addr(proxyIP.c_str());
+
+    configureSocketOptions();
+}
+
+void Proxy::configureSocketOptions() const {
+    int one = 1;
+    const int *val = &one;
+
+    if (setsockopt(proxySocket, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0) {
+        std::cerr << "Error setting IP_HDRINCL option: " << strerror(errno) << std::endl;
+        exit(1);
+    }
 }
 
 void Proxy::receivePacket(int expectedPort) {
@@ -48,7 +60,6 @@ void Proxy::receivePacket(int expectedPort) {
         int sourcePort = ntohs(tcph->source);
 
         if (sourcePort == expectedPort) {
-            std::cout << "Payload: " << packet + sizeof(struct iphdr) + sizeof(struct tcphdr) << std::endl;
             forwardPacketToReceiver(packet, dataSize);
             break;
         }
@@ -56,6 +67,11 @@ void Proxy::receivePacket(int expectedPort) {
 }
 
 void Proxy::forwardPacketToReceiver(char* receivedPacket, ssize_t dataSize) {
+    tcph->source = proxyAddr.sin_port;
+    tcph->dest = receiverAddr.sin_port;
+
+    std::memcpy(receivedPacket + sizeof(struct iphdr), tcph, sizeof(struct tcphdr));
+
     if (sendto(proxySocket, receivedPacket, dataSize, 0,
                reinterpret_cast<struct sockaddr*>(&receiverAddr), sizeof(receiverAddr)) < 0) {
         std::cerr << "Error forwarding packet to receiver: " << strerror(errno) << std::endl;

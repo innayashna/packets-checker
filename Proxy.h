@@ -19,10 +19,11 @@ private:
 
     char packet[4096]{};
 
-    struct iphdr *iph;
-    struct tcphdr *tcph;
+    struct iphdr *iph{};
+    struct tcphdr *tcph{};
 
     void initializeProxySocket(int proxyPort, const std::string& proxyIP);
+    void configureSocketOptions() const;
     void forwardPacketToReceiver(char* packet, ssize_t dataSize);
 };
 
