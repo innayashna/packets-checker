@@ -56,7 +56,7 @@ void Receiver::validateChecksum(char* receivedPacket, ssize_t dataSize) {
     unsigned short sentChecksum = tcph->check;
     tcph->check = 0;
 
-    unsigned short receivedChecksum = calculatePseudoHeaderChecksum(receivedPacket, dataSize);
+    unsigned short receivedChecksum = recalculateChecksum(receivedPacket, dataSize);
     tcph->check = receivedChecksum;
 
     if (receivedChecksum == sentChecksum) {
@@ -66,7 +66,7 @@ void Receiver::validateChecksum(char* receivedPacket, ssize_t dataSize) {
     }
 }
 
-unsigned short Receiver::calculatePseudoHeaderChecksum(char* receivedPacket, ssize_t dataSize) {
+unsigned short Receiver::recalculateChecksum(char* receivedPacket, ssize_t dataSize) {
     pseudo_header psh{};
     psh.source_address = iph->saddr;
     psh.destination_address = iph->daddr;

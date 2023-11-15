@@ -21,11 +21,13 @@ private:
     char packet[4096]{};
     std::string forwardFlag;
 
+    struct iphdr *iph{};
     struct tcphdr *tcph{};
 
     void initializeProxySocket(int proxyPort, const std::string& proxyIP);
     void configureSocketOptions() const;
     void forwardPacketToReceiver(char* packet, ssize_t dataSize);
+    unsigned short calculateChecksumWithNewPorts(char* receivedPacket, ssize_t dataSize);
     static ssize_t modifyPayload(char* receivedPacket);
 };
 
