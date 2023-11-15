@@ -41,9 +41,9 @@ void Receiver::receivePacket(int expectedPort) {
         }
 
         int sourcePort = ntohs(tcph->source);
-        std::cout << "Source port: " << sourcePort << std::endl;
+        int destinationPort = ntohs(tcph->dest);
 
-        if (sourcePort == expectedPort) {
+        if (sourcePort == expectedPort && destinationPort == ntohs(receiverAddr.sin_port)) {
             std::cout << "Received data size: " << dataSize << std::endl;
             validateChecksum(packet, dataSize);
             std::cout << "Payload: " << packet + sizeof(struct iphdr) + sizeof(struct tcphdr) << std::endl;
