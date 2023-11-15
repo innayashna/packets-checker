@@ -14,7 +14,6 @@ Proxy::Proxy(const std::string& proxyIP, int proxyPort, const std::string& recei
     receiverAddr.sin_port = htons(receiverPort);
     receiverAddr.sin_addr.s_addr = inet_addr(receiverIP.c_str());
 
-    iph = reinterpret_cast<struct iphdr *>(packet);
     tcph = reinterpret_cast<struct tcphdr *>(packet + sizeof(struct iphdr));
 }
 
@@ -47,6 +46,10 @@ void Proxy::configureSocketOptions() const {
     }
 }
 
+void Proxy::setForwardFlag(const std::string &flag) {
+    forwardFlag = flag;
+}
+
 void Proxy::receivePacket(int expectedPort) {
     while (true) {
         std::memset(packet, 0, sizeof(packet));
@@ -72,6 +75,10 @@ void Proxy::forwardPacketToReceiver(char* receivedPacket, ssize_t dataSize) {
 
     std::memcpy(receivedPacket + sizeof(struct iphdr), tcph, sizeof(struct tcphdr));
 
+    if(forwardFlag == "MODIFY") {
+        dataSize = modifyPayload(receivedPacket);
+    }
+
     if (sendto(proxySocket, receivedPacket, dataSize, 0,
                reinterpret_cast<struct sockaddr*>(&receiverAddr), sizeof(receiverAddr)) < 0) {
         std::cerr << "Error forwarding packet to receiver: " << strerror(errno) << std::endl;
@@ -79,4 +86,14 @@ void Proxy::forwardPacketToReceiver(char* receivedPacket, ssize_t dataSize) {
     } else {
         std::cout << "Packet forwarded to receiver. Length: " << dataSize << std::endl;
     }
+}
+
+ssize_t Proxy::modifyPayload(char* receivedPacket) {
+    std::string payload(receivedPacket + sizeof(struct iphdr) + sizeof(struct tcphdr));
+    std::string modifiedPayload = payload + " (modified)";
+
+    std::memcpy(receivedPacket + sizeof(struct iphdr) + sizeof(struct tcphdr),
+                modifiedPayload.c_str(), modifiedPayload.length());
+
+    return static_cast<int>(sizeof(struct iphdr) + sizeof(struct tcphdr) + modifiedPayload.length());
 }

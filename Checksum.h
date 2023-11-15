@@ -13,7 +13,7 @@ struct pseudo_header {
 
 class Checksum {
 public:
-    unsigned short calculateChecksum(unsigned short *ptr, unsigned int count);
+    static unsigned short calculateChecksum(unsigned short *ptr, unsigned int count);
 };
 
 #endif //PACKETS_CHECKER_CHECKSUM_H
