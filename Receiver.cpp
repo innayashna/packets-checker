@@ -8,7 +8,6 @@
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
-#include <memory>
 
 Receiver::Receiver(const std::string& receiverIP, int receiverPort) {
     receiverSocket = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
@@ -56,7 +55,7 @@ void Receiver::validateChecksum(char* receivedPacket, ssize_t dataSize) {
     unsigned short sentChecksum = tcph->check;
     tcph->check = 0;
 
-    unsigned short receivedChecksum = recalculateChecksum(receivedPacket, dataSize);
+    unsigned short receivedChecksum = Checksum::recalculateChecksum(receivedPacket, dataSize, iph);
     tcph->check = receivedChecksum;
 
     if (receivedChecksum == sentChecksum) {
@@ -64,24 +63,4 @@ void Receiver::validateChecksum(char* receivedPacket, ssize_t dataSize) {
     } else {
         std::cout << "Checksum does not match. Packet may be corrupted." << std::endl;
     }
-}
-
-unsigned short Receiver::recalculateChecksum(char* receivedPacket, ssize_t dataSize) {
-    pseudo_header psh{};
-    psh.source_address = iph->saddr;
-    psh.destination_address = iph->daddr;
-    psh.reserved_field = 0;
-    psh.protocol = IPPROTO_TCP;
-    psh.tcp_length = htons(dataSize - sizeof(struct iphdr));
-
-    int payloadSize = static_cast<int>(dataSize - sizeof(struct iphdr) - sizeof(struct tcphdr));
-
-    int pseudogramSize = static_cast<int>(sizeof(struct pseudo_header) + sizeof(struct tcphdr) + payloadSize);
-    auto pseudogram = std::make_unique<char[]>(pseudogramSize);
-
-    std::memcpy(pseudogram.get(), reinterpret_cast<char*>(&psh), sizeof(struct pseudo_header));
-    std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), receivedPacket + sizeof(struct iphdr),
-                sizeof(struct tcphdr) + payloadSize);
-
-    return Checksum::calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
 }

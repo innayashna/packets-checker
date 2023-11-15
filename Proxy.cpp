@@ -1,5 +1,6 @@
 #include "Proxy.h"
 #include "Checksum.h"
+#include "SocketConfigurator.h"
 
 #include <iostream>
 #include <unistd.h>
@@ -7,7 +8,6 @@
 #include <cerrno>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
-#include <memory>
 
 Proxy::Proxy(const std::string& proxyIP, int proxyPort, const std::string& receiverIP, int receiverPort) {
     initializeProxySocket(proxyPort, proxyIP);
@@ -36,17 +36,7 @@ void Proxy::initializeProxySocket(int proxyPort, const std::string& proxyIP) {
     proxyAddr.sin_port = htons(proxyPort);
     proxyAddr.sin_addr.s_addr = inet_addr(proxyIP.c_str());
 
-    configureSocketOptions();
-}
-
-void Proxy::configureSocketOptions() const {
-    int one = 1;
-    const int *val = &one;
-
-    if (setsockopt(proxySocket, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0) {
-        std::cerr << "Error setting IP_HDRINCL option: " << strerror(errno) << std::endl;
-        exit(1);
-    }
+    SocketConfigurator::configureSocketOptions(proxySocket);
 }
 
 void Proxy::setForwardFlag(const std::string &flag) {
@@ -80,40 +70,14 @@ void Proxy::forwardPacketToReceiver(char* receivedPacket, ssize_t dataSize) {
 
     tcph->check = 0;
 
-    unsigned short newPortsChecksum = calculateChecksumWithNewPorts(receivedPacket, dataSize);
-    tcph->check = newPortsChecksum;
+    unsigned short portChangedChecksum = Checksum::recalculateChecksum(receivedPacket, dataSize, iph);
+    tcph->check = portChangedChecksum;
 
     if(forwardFlag == "MODIFY") {
         dataSize = modifyPayload(receivedPacket);
     }
 
-    if (sendto(proxySocket, receivedPacket, dataSize, 0,
-               reinterpret_cast<struct sockaddr*>(&receiverAddr), sizeof(receiverAddr)) < 0) {
-        std::cerr << "Error forwarding packet to receiver: " << strerror(errno) << std::endl;
-        exit(1);
-    } else {
-        std::cout << "Packet forwarded to receiver. Length: " << dataSize << std::endl;
-    }
-}
-
-unsigned short Proxy::calculateChecksumWithNewPorts(char* receivedPacket, ssize_t dataSize) {
-    pseudo_header psh{};
-    psh.source_address = iph->saddr;
-    psh.destination_address = iph->daddr;
-    psh.reserved_field = 0;
-    psh.protocol = IPPROTO_TCP;
-    psh.tcp_length = htons(dataSize - sizeof(struct iphdr));
-
-    int payloadSize = static_cast<int>(dataSize - sizeof(struct iphdr) - sizeof(struct tcphdr));
-
-    int pseudogramSize = static_cast<int>(sizeof(struct pseudo_header) + sizeof(struct tcphdr) + payloadSize);
-    auto pseudogram = std::make_unique<char[]>(pseudogramSize);
-
-    std::memcpy(pseudogram.get(), reinterpret_cast<char*>(&psh), sizeof(struct pseudo_header));
-    std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), receivedPacket + sizeof(struct iphdr),
-                sizeof(struct tcphdr) + payloadSize);
-
-    return Checksum::calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
+    sendPacket(receivedPacket, dataSize);
 }
 
 ssize_t Proxy::modifyPayload(char* receivedPacket) {
@@ -124,4 +88,14 @@ ssize_t Proxy::modifyPayload(char* receivedPacket) {
                 modifiedPayload.c_str(), modifiedPayload.length());
 
     return static_cast<int>(sizeof(struct iphdr) + sizeof(struct tcphdr) + modifiedPayload.length());
+}
+
+void Proxy::sendPacket(char* receivedPacket, ssize_t dataSize) {
+    if (sendto(proxySocket, receivedPacket, dataSize, 0,
+               reinterpret_cast<struct sockaddr*>(&receiverAddr), sizeof(receiverAddr)) < 0) {
+        std::cerr << "Error forwarding packet to receiver: " << strerror(errno) << std::endl;
+        exit(1);
+    } else {
+        std::cout << "Packet forwarded to receiver. Length: " << dataSize << std::endl;
+    }
 }
