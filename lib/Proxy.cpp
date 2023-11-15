@@ -1,6 +1,6 @@
-#include "Proxy.h"
-#include "Checksum.h"
-#include "SocketConfigurator.h"
+#include "../include/Proxy.h"
+#include "../include/Checksum.h"
+#include "../include/SocketConfigurator.h"
 
 #include <iostream>
 #include <unistd.h>
@@ -29,7 +29,7 @@ void Proxy::initializeProxySocket(int proxyPort, const std::string& proxyIP) {
     proxySocket = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
 
     if (proxySocket == -1) {
-        std::cerr << "Error creating proxy socket: " << strerror(errno) << std::endl;
+        std::cerr << "[PROXY] Error creating proxy socket: " << strerror(errno) << std::endl;
         exit(1);
     }
 
@@ -50,7 +50,7 @@ void Proxy::receivePacket(int expectedPort) {
         ssize_t dataSize = recv(proxySocket, packet, sizeof(packet), 0);
 
         if (dataSize < 0) {
-            std::cerr << "Error receiving packet from sender: " << strerror(errno) << std::endl;
+            std::cerr << "[PROXY] Error receiving packet from sender: " << strerror(errno) << std::endl;
             exit(1);
         }
 
@@ -94,9 +94,9 @@ ssize_t Proxy::modifyPayload(char* receivedPacket) {
 void Proxy::sendPacket(char* receivedPacket, ssize_t dataSize) {
     if (sendto(proxySocket, receivedPacket, dataSize, 0,
                reinterpret_cast<struct sockaddr*>(&receiverAddr), sizeof(receiverAddr)) < 0) {
-        std::cerr << "Error forwarding packet to receiver: " << strerror(errno) << std::endl;
+        std::cerr << "[PROXY] Error forwarding packet to receiver: " << strerror(errno) << std::endl;
         exit(1);
     } else {
-        std::cout << "Packet forwarded to receiver. Length: " << dataSize << std::endl;
+        std::cout << "[PROXY] Packet forwarded to receiver. Length: " << dataSize << std::endl;
     }
 }

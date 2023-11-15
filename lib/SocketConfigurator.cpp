@@ -1,4 +1,4 @@
-#include "SocketConfigurator.h"
+#include "../include/SocketConfigurator.h"
 
 #include <iostream>
 #include <unistd.h>

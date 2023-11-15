@@ -1,6 +1,6 @@
-#include "Sender.h"
-#include "Proxy.h"
-#include "Receiver.h"
+#include "../include/Sender.h"
+#include "../include/Proxy.h"
+#include "../include/Receiver.h"
 
 #include <iostream>
 

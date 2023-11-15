@@ -1,5 +1,5 @@
-#include "Receiver.h"
-#include "Checksum.h"
+#include "../include/Receiver.h"
+#include "../include/Checksum.h"
 
 #include <iostream>
 #include <cstring>
@@ -13,7 +13,7 @@ Receiver::Receiver(const std::string& receiverIP, int receiverPort) {
     receiverSocket = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
 
     if (receiverSocket == -1) {
-        std::cerr << "Error creating socket: " << strerror(errno) << std::endl;
+        std::cerr << "[RECEIVER] Error creating socket: " << strerror(errno) << std::endl;
         exit(1);
     }
 
@@ -36,7 +36,7 @@ void Receiver::receivePacket(int expectedPort) {
         ssize_t dataSize = recv(receiverSocket, packet, sizeof(packet), 0);
 
         if (dataSize < 0) {
-            std::cerr << "Error receiving packet: " << strerror(errno) << std::endl;
+            std::cerr << "[RECEIVER] Error receiving packet: " << strerror(errno) << std::endl;
             exit(1);
         }
 
@@ -44,9 +44,9 @@ void Receiver::receivePacket(int expectedPort) {
         int destinationPort = ntohs(tcph->dest);
 
         if (sourcePort == expectedPort && destinationPort == ntohs(receiverAddr.sin_port)) {
-            std::cout << "Received data size: " << dataSize << std::endl;
+            std::cout << "[RECEIVER] Received data size: " << dataSize << std::endl;
             validateChecksum(packet, dataSize);
-            std::cout << "Payload: " << packet + sizeof(struct iphdr) + sizeof(struct tcphdr) << std::endl;
+            std::cout << "[RECEIVER] Payload: " << packet + sizeof(struct iphdr) + sizeof(struct tcphdr) << std::endl;
             break;
         }
     }
@@ -60,8 +60,8 @@ void Receiver::validateChecksum(char* receivedPacket, ssize_t dataSize) {
     tcph->check = recalculatedChecksum;
 
     if (receivedChecksum == recalculatedChecksum) {
-        std::cout << "Checksum is valid. Packet was not corrupted." << std::endl;
+        std::cout << "[RECEIVER] Checksum is valid. Payload was not changed by proxy." << std::endl;
     } else {
-        std::cout << "Checksum does not match. Packet may be corrupted." << std::endl;
+        std::cout << "[RECEIVER] Checksum does not match. Payload was changed by proxy." << std::endl;
     }
 }

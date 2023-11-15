@@ -1,6 +1,6 @@
-#include "Sender.h"
-#include "Checksum.h"
-#include "SocketConfigurator.h"
+#include "../include/Sender.h"
+#include "../include/Checksum.h"
+#include "../include/SocketConfigurator.h"
 
 #include <iostream>
 #include <cstring>
@@ -9,7 +9,6 @@
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
-#include <memory>
 
 Sender::Sender(const std::string& senderIP, int senderPort, const std::string& proxyIP, int proxyPort) {
     initializeSenderSocket(senderPort, senderIP);
@@ -30,7 +29,7 @@ void Sender::initializeSenderSocket(int senderPort, const std::string& senderIP)
     senderSocket = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
 
     if (senderSocket == -1) {
-        std::cerr << "Error creating socket: " << strerror(errno) << std::endl;
+        std::cerr << "[SENDER] Error creating socket: " << strerror(errno) << std::endl;
         exit(1);
     }
 
@@ -43,7 +42,7 @@ void Sender::initializeSenderSocket(int senderPort, const std::string& senderIP)
 
 void Sender::setPayload(const std::string& payload) {
     if (payload.length() > MAX_PAYLOAD_SIZE) {
-        std::cerr << "Payload is too long. Maximum length is 4096 bytes." << std::endl;
+        std::cerr << "[SENDER] Payload is too long. Maximum length is 4096 bytes." << std::endl;
         exit(1);
     }
     senderPayload = payload;
@@ -92,9 +91,9 @@ void Sender::sendPacket() {
 
     if (sendto(senderSocket, datagram, iph->tot_len, 0,
                reinterpret_cast<sockaddr*>(&proxyAddr), sizeof(proxyAddr)) < 0) {
-        std::cerr << "Error sending packet: " << strerror(errno) << std::endl;
+        std::cerr << "[SENDER] Error sending packet: " << strerror(errno) << std::endl;
         exit(1);
     } else {
-        std::cout << "Packet Send. Length : " << iph->tot_len << std::endl;
+        std::cout << "[SENDER] Packet send. Length : " << iph->tot_len << std::endl;
     }
 }
