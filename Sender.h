@@ -1,14 +1,11 @@
 #ifndef PACKETS_CHECKER_SENDER_H
 #define PACKETS_CHECKER_SENDER_H
 
-#include "Checksum.h"
-
 #include <string>
 #include <netinet/ip.h>
 
 constexpr int WINDOW_SIZE = 5840;
 constexpr int MAX_PAYLOAD_SIZE = 4096;
-constexpr int MAX_DATAGRAM_SIZE = 4096;
 
 class Sender {
 public:
@@ -19,8 +16,6 @@ public:
     void sendPacket();
 
 private:
-    Checksum checksumCalculator;
-
     int senderSocket{};
     sockaddr_in senderAddr{};
     sockaddr_in proxyAddr{};

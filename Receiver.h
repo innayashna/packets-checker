@@ -1,8 +1,6 @@
 #ifndef PACKETS_CHECKER_RECEIVER_H
 #define PACKETS_CHECKER_RECEIVER_H
 
-#include "Checksum.h"
-
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <string>
@@ -15,8 +13,6 @@ public:
     void receivePacket(int expectedPort);
 
 private:
-    Checksum checksumCalculator;
-
     int receiverSocket;
     struct sockaddr_in receiverAddr{};
 

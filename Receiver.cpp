@@ -83,5 +83,5 @@ unsigned short Receiver::calculatePseudoHeaderChecksum(char* receivedPacket, ssi
     std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), receivedPacket + sizeof(struct iphdr),
                 sizeof(struct tcphdr) + payloadSize);
 
-    return checksumCalculator.calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
+    return Checksum::calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
 }

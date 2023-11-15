@@ -74,7 +74,7 @@ void Sender::fillInIPHeader() {
     iph->saddr = senderAddr.sin_addr.s_addr;
     iph->daddr = proxyAddr.sin_addr.s_addr;
 
-    iph->check = checksumCalculator.calculateChecksum(reinterpret_cast<unsigned short*>(iph), iph->ihl * 4);
+    iph->check = Checksum::calculateChecksum(reinterpret_cast<unsigned short*>(iph), iph->ihl * 4);
 }
 
 void Sender::fillInTCPHeader() {
@@ -109,7 +109,7 @@ void Sender::fillInPseudoHeader() {
     std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), datagram + sizeof(struct iphdr),
             sizeof(struct tcphdr) + senderPayload.length());
 
-    tcph->check = checksumCalculator.calculateChecksum(
+    tcph->check = Checksum::calculateChecksum(
             reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
 }
 
