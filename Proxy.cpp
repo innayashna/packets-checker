@@ -1,4 +1,5 @@
 #include "Proxy.h"
+#include "Checksum.h"
 
 #include <iostream>
 #include <unistd.h>
@@ -6,6 +7,7 @@
 #include <cerrno>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <memory>
 
 Proxy::Proxy(const std::string& proxyIP, int proxyPort, const std::string& receiverIP, int receiverPort) {
     initializeProxySocket(proxyPort, proxyIP);
@@ -14,6 +16,7 @@ Proxy::Proxy(const std::string& proxyIP, int proxyPort, const std::string& recei
     receiverAddr.sin_port = htons(receiverPort);
     receiverAddr.sin_addr.s_addr = inet_addr(receiverIP.c_str());
 
+    iph = reinterpret_cast<struct iphdr *>(packet);
     tcph = reinterpret_cast<struct tcphdr *>(packet + sizeof(struct iphdr));
 }
 
@@ -75,6 +78,11 @@ void Proxy::forwardPacketToReceiver(char* receivedPacket, ssize_t dataSize) {
 
     std::memcpy(receivedPacket + sizeof(struct iphdr), tcph, sizeof(struct tcphdr));
 
+    tcph->check = 0;
+
+    unsigned short newPortsChecksum = calculateChecksumWithNewPorts(receivedPacket, dataSize);
+    tcph->check = newPortsChecksum;
+
     if(forwardFlag == "MODIFY") {
         dataSize = modifyPayload(receivedPacket);
     }
@@ -86,6 +94,26 @@ void Proxy::forwardPacketToReceiver(char* receivedPacket, ssize_t dataSize) {
     } else {
         std::cout << "Packet forwarded to receiver. Length: " << dataSize << std::endl;
     }
+}
+
+unsigned short Proxy::calculateChecksumWithNewPorts(char* receivedPacket, ssize_t dataSize) {
+    pseudo_header psh{};
+    psh.source_address = iph->saddr;
+    psh.destination_address = iph->daddr;
+    psh.reserved_field = 0;
+    psh.protocol = IPPROTO_TCP;
+    psh.tcp_length = htons(dataSize - sizeof(struct iphdr));
+
+    int payloadSize = static_cast<int>(dataSize - sizeof(struct iphdr) - sizeof(struct tcphdr));
+
+    int pseudogramSize = static_cast<int>(sizeof(struct pseudo_header) + sizeof(struct tcphdr) + payloadSize);
+    auto pseudogram = std::make_unique<char[]>(pseudogramSize);
+
+    std::memcpy(pseudogram.get(), reinterpret_cast<char*>(&psh), sizeof(struct pseudo_header));
+    std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), receivedPacket + sizeof(struct iphdr),
+                sizeof(struct tcphdr) + payloadSize);
+
+    return Checksum::calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
 }
 
 ssize_t Proxy::modifyPayload(char* receivedPacket) {
