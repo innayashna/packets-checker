@@ -24,7 +24,7 @@ unsigned short Checksum::calculateChecksum(unsigned short *ptr, unsigned int cou
     return static_cast<unsigned short>(sum);
 }
 
-unsigned short Checksum::recalculateChecksum(char* receivedPacket, ssize_t dataSize, iphdr* iph) {
+unsigned short Checksum::fillInPseudoHeader(char* packet, ssize_t dataSize, iphdr* iph, const std::string& payload) {
     pseudo_header psh{};
     psh.source_address = iph->saddr;
     psh.destination_address = iph->daddr;
@@ -32,14 +32,12 @@ unsigned short Checksum::recalculateChecksum(char* receivedPacket, ssize_t dataS
     psh.protocol = IPPROTO_TCP;
     psh.tcp_length = htons(dataSize - sizeof(struct iphdr));
 
-    int payloadSize = static_cast<int>(dataSize - sizeof(struct iphdr) - sizeof(struct tcphdr));
-
-    int pseudogramSize = static_cast<int>(sizeof(struct pseudo_header) + sizeof(struct tcphdr) + payloadSize);
+    int pseudogramSize = static_cast<int>(sizeof(struct pseudo_header) + sizeof(struct tcphdr) + payload.length());
     auto pseudogram = std::make_unique<char[]>(pseudogramSize);
 
     std::memcpy(pseudogram.get(), reinterpret_cast<char*>(&psh), sizeof(struct pseudo_header));
-    std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), receivedPacket + sizeof(struct iphdr),
-                sizeof(struct tcphdr) + payloadSize);
+    std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), packet + sizeof(struct iphdr),
+                sizeof(struct tcphdr) + payload.length());
 
     return Checksum::calculateChecksum(reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
 }

@@ -83,31 +83,12 @@ void Sender::fillInTCPHeader() {
     tcph->window = htons(WINDOW_SIZE);
     tcph->check = 0;
     tcph->urg_ptr = 0;
-}
-
-void Sender::fillInPseudoHeader() {
-    pseudo_header psh{};
-    psh.source_address = senderAddr.sin_addr.s_addr;
-    psh.destination_address = proxyAddr.sin_addr.s_addr;
-    psh.reserved_field = 0;
-    psh.protocol = IPPROTO_TCP;
-    psh.tcp_length = htons(sizeof(struct tcphdr) + senderPayload.length());
-
-    int pseudogramSize = static_cast<int>(sizeof(struct pseudo_header) + sizeof(struct tcphdr) + senderPayload.length());
-    auto pseudogram = std::make_unique<char[]>(pseudogramSize);
-
-    std::memcpy(pseudogram.get(), reinterpret_cast<char*>(&psh), sizeof(struct pseudo_header));
-    std::memcpy(pseudogram.get() + sizeof(struct pseudo_header), datagram + sizeof(struct iphdr),
-            sizeof(struct tcphdr) + senderPayload.length());
-
-    tcph->check = Checksum::calculateChecksum(
-            reinterpret_cast<unsigned short*>(pseudogram.get()), pseudogramSize);
+    tcph->check = Checksum::fillInPseudoHeader(datagram, iph->tot_len, iph, senderPayload);
 }
 
 void Sender::sendPacket() {
     fillInIPHeader();
     fillInTCPHeader();
-    fillInPseudoHeader();
 
     if (sendto(senderSocket, datagram, iph->tot_len, 0,
                reinterpret_cast<sockaddr*>(&proxyAddr), sizeof(proxyAddr)) < 0) {

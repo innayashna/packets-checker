@@ -23,6 +23,7 @@ private:
 
     struct iphdr *iph{};
     struct tcphdr *tcph{};
+    std::string payload;
 
     void initializeProxySocket(int proxyPort, const std::string& proxyIP);
     void forwardPacketToReceiver(char* packet, ssize_t dataSize);

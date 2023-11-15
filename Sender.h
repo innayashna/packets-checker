@@ -29,7 +29,6 @@ private:
     void initializeSenderSocket(int senderPort, const std::string& senderIP);
     void fillInIPHeader();
     void fillInTCPHeader();
-    void fillInPseudoHeader();
 };
 
 #endif //PACKETS_CHECKER_SENDER_H

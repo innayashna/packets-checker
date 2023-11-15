@@ -18,6 +18,7 @@ Proxy::Proxy(const std::string& proxyIP, int proxyPort, const std::string& recei
 
     iph = reinterpret_cast<struct iphdr *>(packet);
     tcph = reinterpret_cast<struct tcphdr *>(packet + sizeof(struct iphdr));
+    payload =  packet + sizeof(struct iphdr) + sizeof(struct tcphdr);
 }
 
 Proxy::~Proxy() {
@@ -70,8 +71,8 @@ void Proxy::forwardPacketToReceiver(char* receivedPacket, ssize_t dataSize) {
 
     tcph->check = 0;
 
-    unsigned short portChangedChecksum = Checksum::recalculateChecksum(receivedPacket, dataSize, iph);
-    tcph->check = portChangedChecksum;
+    unsigned short newChecksum = Checksum::fillInPseudoHeader(receivedPacket, dataSize, iph, payload);
+    tcph->check = newChecksum;
 
     if(forwardFlag == "MODIFY") {
         dataSize = modifyPayload(receivedPacket);

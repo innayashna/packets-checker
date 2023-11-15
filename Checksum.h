@@ -17,7 +17,7 @@ struct pseudo_header {
 class Checksum {
 public:
     static unsigned short calculateChecksum(unsigned short *ptr, unsigned int count);
-    static unsigned short recalculateChecksum(char* receivedPacket, ssize_t dataSize, iphdr* iph);
+    static unsigned short fillInPseudoHeader(char* packet, ssize_t dataSize, iphdr* iph, const std::string& payload);
 };
 
 #endif //PACKETS_CHECKER_CHECKSUM_H

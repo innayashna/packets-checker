@@ -20,6 +20,7 @@ private:
 
     struct iphdr *iph;
     struct tcphdr *tcph;
+    std::string payload;
 
     void validateChecksum(char *receivedPacket, ssize_t dataSize);
 };

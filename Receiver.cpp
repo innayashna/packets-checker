@@ -23,6 +23,7 @@ Receiver::Receiver(const std::string& receiverIP, int receiverPort) {
 
     iph = reinterpret_cast<struct iphdr *>(packet);
     tcph = reinterpret_cast<struct tcphdr *>(packet + sizeof(struct iphdr));
+    payload =  packet + sizeof(struct iphdr) + sizeof(struct tcphdr);
 }
 
 Receiver::~Receiver() {
@@ -52,13 +53,13 @@ void Receiver::receivePacket(int expectedPort) {
 }
 
 void Receiver::validateChecksum(char* receivedPacket, ssize_t dataSize) {
-    unsigned short sentChecksum = tcph->check;
+    unsigned short receivedChecksum = tcph->check;
     tcph->check = 0;
 
-    unsigned short receivedChecksum = Checksum::recalculateChecksum(receivedPacket, dataSize, iph);
-    tcph->check = receivedChecksum;
+    unsigned short recalculatedChecksum = Checksum::fillInPseudoHeader(receivedPacket, dataSize, iph, payload);
+    tcph->check = recalculatedChecksum;
 
-    if (receivedChecksum == sentChecksum) {
+    if (receivedChecksum == recalculatedChecksum) {
         std::cout << "Checksum is valid. Packet was not corrupted." << std::endl;
     } else {
         std::cout << "Checksum does not match. Packet may be corrupted." << std::endl;
